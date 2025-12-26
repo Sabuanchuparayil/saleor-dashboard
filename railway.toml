@@ -1,0 +1,12 @@
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[build.args]
+# API_URL must be passed as build argument for Vite to inject it into the bundle
+API_URL = "${{API_URL}}"
+
+[deploy]
+healthcheckPath = "/dashboard/"
+healthcheckTimeout = 300
+
