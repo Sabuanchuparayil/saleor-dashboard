@@ -7,13 +7,30 @@ set -e
 
 INDEX_BUNDLE_PATH="/app/dashboard/index.html"
 
-# Function to replace environment variables
+# Debug: List all environment variables (for troubleshooting)
+# Uncomment the next line if you need to debug
+# env | grep -E "API_URL|APP_MOUNT" || true
+
+# Function to replace environment variables using direct parameter expansion
 replace_env_var() {
   var_name=$1
-  var_value=$(eval echo \$"$var_name")
+  # Direct parameter expansion - more reliable than eval
+  case "$var_name" in
+    API_URL) var_value="$API_URL" ;;
+    APP_MOUNT_URI) var_value="$APP_MOUNT_URI" ;;
+    APPS_MARKETPLACE_API_URL) var_value="$APPS_MARKETPLACE_API_URL" ;;
+    EXTENSIONS_API_URL) var_value="$EXTENSIONS_API_URL" ;;
+    APPS_TUNNEL_URL_KEYWORDS) var_value="$APPS_TUNNEL_URL_KEYWORDS" ;;
+    IS_CLOUD_INSTANCE) var_value="$IS_CLOUD_INSTANCE" ;;
+    LOCALE_CODE) var_value="$LOCALE_CODE" ;;
+    *) var_value="" ;;
+  esac
+  
   if [ -n "$var_value" ]; then
     echo "Setting $var_name to: $var_value"
-    sed -i "s#$var_name: \".*\"#$var_name: \"$var_value\"#" "$INDEX_BUNDLE_PATH"
+    # Escape special characters in the value for sed (especially forward slashes)
+    escaped_value=$(echo "$var_value" | sed 's/[[\.*^$()+?{|]/\\&/g' | sed 's|/|\\/|g')
+    sed -i "s#$var_name: \".*\"#$var_name: \"$escaped_value\"#g" "$INDEX_BUNDLE_PATH"
   else
     echo "No $var_name provided, using defaults."
   fi
