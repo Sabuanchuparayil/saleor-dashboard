@@ -43,7 +43,9 @@ RUN pnpm exec cross-env NODE_OPTIONS=--max-old-space-size=8192 vite build
 FROM nginx:stable-alpine as runner
 WORKDIR /app
 
-COPY ./nginx/default.conf /etc/nginx/conf.d/default.conf
+ENV PORT=80
+# Use nginx envsubst-on-templates entrypoint to render config with Railway $PORT at runtime.
+COPY ./nginx/default.conf /etc/nginx/templates/default.conf.template
 COPY ./nginx/replace-env-vars.sh /docker-entrypoint.d/50-replace-env-vars.sh
 COPY --from=builder /app/build/ /app/
 
