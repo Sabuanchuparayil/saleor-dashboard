@@ -8,8 +8,12 @@ set -e
 INDEX_BUNDLE_PATH="/app/dashboard/index.html"
 
 # Debug: List available environment variables (excluding sensitive ones)
-echo "Available environment variables:"
-env | grep -E "^API_URL=|^APP_MOUNT_URI=|^APPS_" | head -10 || echo "No matching env vars found"
+# Output to stderr so Railway logs capture it
+echo "[replace-env-vars.sh] Starting environment variable replacement" >&2
+echo "[replace-env-vars.sh] Available environment variables:" >&2
+env | grep -E "^API_URL=|^APP_MOUNT_URI=|^APPS_" | head -10 >&2 || echo "[replace-env-vars.sh] No matching env vars found" >&2
+echo "[replace-env-vars.sh] Checking if index.html exists: $INDEX_BUNDLE_PATH" >&2
+ls -la "$INDEX_BUNDLE_PATH" >&2 || echo "[replace-env-vars.sh] ERROR: index.html not found!" >&2
 
 # Function to replace environment variables
 replace_env_var() {
