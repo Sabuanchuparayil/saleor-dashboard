@@ -28,14 +28,19 @@ replace_env_var() {
   
   if [ -n "$var_value" ] && [ "$var_value" != "" ]; then
     echo "Setting $var_name to: $var_value"
-    # Use # as delimiter in sed to avoid issues with URLs containing /
-    # Escape special regex characters in the value
-    escaped_value=$(printf '%s\n' "$var_value" | sed 's/[[\.*^$()+?{|]/\\&/g')
+    # Escape special regex characters in the value (especially / for URLs)
+    escaped_value=$(printf '%s\n' "$var_value" | sed 's/[[\.*^$()+?{|]/\\&/g' | sed 's|/|\\/|g')
+    # The built index.html has format: API_URL: "value"
     # Try multiple sed patterns to ensure replacement works
-    sed -i "s#${var_name}: \"[^\"]*\"#${var_name}: \"${escaped_value}\"#g" "$INDEX_BUNDLE_PATH" 2>/dev/null || \
-    sed -i "s#${var_name}: \".*\"#${var_name}: \"${escaped_value}\"#g" "$INDEX_BUNDLE_PATH" 2>/dev/null || \
-    sed -i "s#\"${var_name}\": \"[^\"]*\"#\"${var_name}\": \"${escaped_value}\"#g" "$INDEX_BUNDLE_PATH" 2>/dev/null || {
+    # Pattern 1: API_URL: "anything"
+    sed -i "s/${var_name}: \"[^\"]*\"/${var_name}: \"${escaped_value}\"/g" "$INDEX_BUNDLE_PATH" 2>/dev/null || \
+    # Pattern 2: "API_URL": "anything" (JSON format)
+    sed -i "s/\"${var_name}\": \"[^\"]*\"/\"${var_name}\": \"${escaped_value}\"/g" "$INDEX_BUNDLE_PATH" 2>/dev/null || \
+    # Pattern 3: Fallback with .* (less safe but might work)
+    sed -i "s/${var_name}: \".*\"/${var_name}: \"${escaped_value}\"/g" "$INDEX_BUNDLE_PATH" 2>/dev/null || {
       echo "Warning: Failed to replace $var_name in $INDEX_BUNDLE_PATH"
+      # Debug: Show what's in the file
+      grep -A 2 -B 2 "$var_name" "$INDEX_BUNDLE_PATH" | head -5 || true
     }
   else
     echo "No $var_name provided, using defaults."
