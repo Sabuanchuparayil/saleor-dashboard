@@ -7,20 +7,35 @@ set -e
 
 INDEX_BUNDLE_PATH="/app/dashboard/index.html"
 
+# Debug: List available environment variables (excluding sensitive ones)
+echo "Available environment variables:"
+env | grep -E "^API_URL=|^APP_MOUNT_URI=|^APPS_" | head -10 || echo "No matching env vars found"
+
 # Function to replace environment variables
 replace_env_var() {
   var_name=$1
-  # Get the variable value directly using parameter expansion
+  # Try multiple methods to get the variable value
+  # Method 1: Direct parameter expansion
   eval "var_value=\"\$$var_name\""
+  
+  # Method 2: If empty, try reading from env
+  if [ -z "$var_value" ] || [ "$var_value" = "" ]; then
+    var_value=$(env | grep "^${var_name}=" | cut -d'=' -f2- || echo "")
+  fi
+  
+  # Remove any quotes that might have been included
+  var_value=$(echo "$var_value" | sed "s/^['\"]//; s/['\"]$//")
   
   if [ -n "$var_value" ] && [ "$var_value" != "" ]; then
     echo "Setting $var_name to: $var_value"
     # Use # as delimiter in sed to avoid issues with URLs containing /
     # Escape special regex characters in the value
     escaped_value=$(printf '%s\n' "$var_value" | sed 's/[[\.*^$()+?{|]/\\&/g')
-    sed -i "s#${var_name}: \"[^\"]*\"#${var_name}: \"${escaped_value}\"#g" "$INDEX_BUNDLE_PATH" 2>/dev/null || {
-      # Fallback: try with different pattern matching
-      sed -i "s#${var_name}: \".*\"#${var_name}: \"${escaped_value}\"#g" "$INDEX_BUNDLE_PATH"
+    # Try multiple sed patterns to ensure replacement works
+    sed -i "s#${var_name}: \"[^\"]*\"#${var_name}: \"${escaped_value}\"#g" "$INDEX_BUNDLE_PATH" 2>/dev/null || \
+    sed -i "s#${var_name}: \".*\"#${var_name}: \"${escaped_value}\"#g" "$INDEX_BUNDLE_PATH" 2>/dev/null || \
+    sed -i "s#\"${var_name}\": \"[^\"]*\"#\"${var_name}\": \"${escaped_value}\"#g" "$INDEX_BUNDLE_PATH" 2>/dev/null || {
+      echo "Warning: Failed to replace $var_name in $INDEX_BUNDLE_PATH"
     }
   else
     echo "No $var_name provided, using defaults."
