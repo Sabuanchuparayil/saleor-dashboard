@@ -27,23 +27,28 @@ replace_env_var() {
   var_value=$(echo "$var_value" | sed "s/^['\"]//; s/['\"]$//")
   
   if [ -n "$var_value" ] && [ "$var_value" != "" ]; then
-    echo "Setting $var_name to: $var_value"
+    echo "[replace-env-vars.sh] Setting $var_name to: $var_value" >&2
     # Escape special regex characters in the value (especially / for URLs)
     escaped_value=$(printf '%s\n' "$var_value" | sed 's/[[\.*^$()+?{|]/\\&/g' | sed 's|/|\\/|g')
     # The built index.html has format: API_URL: "value"
     # Try multiple sed patterns to ensure replacement works
     # Pattern 1: API_URL: "anything"
-    sed -i "s/${var_name}: \"[^\"]*\"/${var_name}: \"${escaped_value}\"/g" "$INDEX_BUNDLE_PATH" 2>/dev/null || \
+    if sed -i "s/${var_name}: \"[^\"]*\"/${var_name}: \"${escaped_value}\"/g" "$INDEX_BUNDLE_PATH" 2>/dev/null; then
+      echo "[replace-env-vars.sh] Successfully replaced $var_name using pattern 1" >&2
     # Pattern 2: "API_URL": "anything" (JSON format)
-    sed -i "s/\"${var_name}\": \"[^\"]*\"/\"${var_name}\": \"${escaped_value}\"/g" "$INDEX_BUNDLE_PATH" 2>/dev/null || \
+    elif sed -i "s/\"${var_name}\": \"[^\"]*\"/\"${var_name}\": \"${escaped_value}\"/g" "$INDEX_BUNDLE_PATH" 2>/dev/null; then
+      echo "[replace-env-vars.sh] Successfully replaced $var_name using pattern 2" >&2
     # Pattern 3: Fallback with .* (less safe but might work)
-    sed -i "s/${var_name}: \".*\"/${var_name}: \"${escaped_value}\"/g" "$INDEX_BUNDLE_PATH" 2>/dev/null || {
-      echo "Warning: Failed to replace $var_name in $INDEX_BUNDLE_PATH"
+    elif sed -i "s/${var_name}: \".*\"/${var_name}: \"${escaped_value}\"/g" "$INDEX_BUNDLE_PATH" 2>/dev/null; then
+      echo "[replace-env-vars.sh] Successfully replaced $var_name using pattern 3" >&2
+    else
+      echo "[replace-env-vars.sh] ERROR: Failed to replace $var_name in $INDEX_BUNDLE_PATH" >&2
       # Debug: Show what's in the file
-      grep -A 2 -B 2 "$var_name" "$INDEX_BUNDLE_PATH" | head -5 || true
-    }
+      echo "[replace-env-vars.sh] Current content around $var_name:" >&2
+      grep -A 2 -B 2 "$var_name" "$INDEX_BUNDLE_PATH" | head -5 >&2 || echo "[replace-env-vars.sh] Could not find $var_name in file" >&2
+    fi
   else
-    echo "No $var_name provided, using defaults."
+    echo "[replace-env-vars.sh] No $var_name provided, using defaults." >&2
   fi
 }
 
@@ -56,4 +61,9 @@ replace_env_var "APPS_TUNNEL_URL_KEYWORDS"
 replace_env_var "IS_CLOUD_INSTANCE"
 replace_env_var "LOCALE_CODE"
 
-echo "Environment variable replacement complete."
+echo "[replace-env-vars.sh] Environment variable replacement complete." >&2
+# Verify the replacement worked by checking the file
+if grep -q "API_URL" "$INDEX_BUNDLE_PATH"; then
+  echo "[replace-env-vars.sh] Final API_URL value in file:" >&2
+  grep "API_URL" "$INDEX_BUNDLE_PATH" | head -1 | sed 's/.*API_URL: "\([^"]*\)".*/\1/' >&2 || true
+fi
