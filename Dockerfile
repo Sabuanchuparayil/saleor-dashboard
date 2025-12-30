@@ -43,18 +43,6 @@ RUN pnpm exec cross-env NODE_OPTIONS=--max-old-space-size=8192 vite build
 FROM nginx:stable-alpine as runner
 WORKDIR /app
 
-ENV PORT=80
-# Explicitly declare environment variables so Railway can inject them at runtime
-# These will be available to the replace-env-vars.sh script
-ENV API_URL=${API_URL:-http://localhost:8000/graphql/}
-ENV APP_MOUNT_URI=${APP_MOUNT_URI:-/dashboard/}
-ENV APPS_MARKETPLACE_API_URL=${APPS_MARKETPLACE_API_URL:-https://apps.saleor.io/api/v2/saleor-apps}
-ENV EXTENSIONS_API_URL=${EXTENSIONS_API_URL:-https://apps.saleor.io/api/v1/extensions}
-ENV APPS_TUNNEL_URL_KEYWORDS=${APPS_TUNNEL_URL_KEYWORDS:-}
-ENV IS_CLOUD_INSTANCE=${IS_CLOUD_INSTANCE:-}
-ENV LOCALE_CODE=${LOCALE_CODE:-EN}
-
-# Use nginx envsubst-on-templates entrypoint to render config with Railway $PORT at runtime.
 COPY ./nginx/default.conf /etc/nginx/templates/default.conf.template
 COPY ./nginx/replace-env-vars.sh /docker-entrypoint.d/50-replace-env-vars.sh
 COPY --from=builder /app/build/ /app/
